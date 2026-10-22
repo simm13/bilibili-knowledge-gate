@@ -18,6 +18,8 @@ Environment=KB_WEB_WAIT=4
 Environment=KB_WEB_INJECT=1
 Environment=KB_WEB_DEBUG=0
 Environment=KB_HIDE_NON_KNOWLEDGE=0
+# PAC 里直连的域名（默认只有本机；GitHub 等代码托管不要加——内网自身出口连不上）
+Environment=KB_PAC_BYPASS=localhost,127.0.0.1
 # 出口不可达（境内网络限制）的域名：直接快速失败，返回说明页而不是裸 502
 Environment=KB_EGRESS_BLOCKED=google.com,googleapis.com,gstatic.com,googlesyndication.com,googleadservices.com,doubleclick.net,googletagmanager.com,google-analytics.com,googlevideo.com,youtube.com,youtu.be,facebook.com,fbcdn.net,instagram.com,twitter.com,x.com,tiktok.com,telegram.org,t.me,reddit.com,pinterest.com,wikipedia.org,wikimedia.org,netflix.com,spotify.com,whatsapp.com,dropbox.com,yandex.ru,dailymotion.com,vimeo.com,zoom.us,discord.com,discordapp.com
 # connection_strategy=lazy: 先建立隧道再连上游，出口不可达时才能返回友好说明页

@@ -77,12 +77,33 @@ PROXY_HOST = os.environ.get("KB_PROXY_HOST") or _auto_ip()
 PROXY_PORT = os.environ.get("KB_PROXY_PORT", "8080")
 LAN_NET = os.environ.get("KB_LAN_NET", "")
 LAN_MASK = os.environ.get("KB_LAN_MASK", "255.255.255.0")
+# PAC 里直连（不走门禁代理）的域名：内网、局域网、以及"门禁服务器出口不通"的开发站点
+# 注意：默认只放行"本机/内网"直连。代码托管类站点（GitHub 等）**不要**默认直连——
+# 实测内网机器自己的出口连不上 GitHub（connect 直接超时），必须走门禁服务器出去。
+# 需要时可自行往里加：KB_PAC_BYPASS=github.com,gitlab.com
+PAC_BYPASS = [h.strip().lower() for h in os.environ.get(
+    "KB_PAC_BYPASS",
+    "localhost,127.0.0.1",
+) .split(",") if h.strip()]
+
 PAC_TEMPLATE = """// Bilibili knowledge-content gateway (auto proxy config)
-// host: %(host)s:%(port)s  ->  mitmproxy + kb-judge on 174
+// host: %(host)s:%(port)s  ->  mitmproxy + kb-judge
+// 直连名单（内网 + 门禁出口不稳定的开发站点）: %(bypass)s
+var KB_BYPASS = %(bypass)s;
+function kbBypass(host) {
+  host = host.toLowerCase();
+  for (var i = 0; i < KB_BYPASS.length; i++) {
+    var b = KB_BYPASS[i];
+    if (b.charAt(0) === ".") { if (host.indexOf(b, host.length - b.length) !== -1) return true; }
+    else if (host === b || host.indexOf(b + ".") === 0 || host.indexOf("." + b + ".") !== -1) return true;
+  }
+  return false;
+}
 function FindProxyForURL(url, host) {
   if (isPlainHostName(host) ||
       shExpMatch(host, "localhost") ||
-      isInNet(host, "%(net)s", "%(mask)s")) {
+      isInNet(host, "%(net)s", "%(mask)s") ||
+      kbBypass(host)) {
     return "DIRECT";
   }
   return "PROXY %(host)s:%(port)s";
@@ -1117,7 +1138,8 @@ def _handle_request(flow: http.HTTPFlow) -> None:
         flow.response = http.Response.make(
             200,
             (PAC_TEMPLATE % {"host": PROXY_HOST, "port": PROXY_PORT,
-                             "net": LAN_NET, "mask": LAN_MASK}).encode("utf-8"),
+                             "net": LAN_NET, "mask": LAN_MASK,
+                             "bypass": json.dumps(PAC_BYPASS)}).encode("utf-8"),
             {"Content-Type": "application/x-ns-proxy-autoconfig"},
         )
         ctx.log.info("[kb-gate] PAC served to %s" % _client_ip(flow))
