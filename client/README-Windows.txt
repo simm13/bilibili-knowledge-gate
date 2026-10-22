@@ -36,6 +36,14 @@ B) 手动
 
 注：内网网段不走代理（默认 192.168.0.0/16，可在 gate.env 的 KB_LAN_NET 改），其余外网流量全部经门禁过滤。
 
+GitHub / GitLab / Gitee 等代码托管站点默认"直连、不做内容策略"：
+  - 方式 A（自动脚本）：PAC 已内置，无需操作；若浏览器没立刻生效，
+    Chrome 打开 chrome://net-internals/#proxy -> Re-apply settings，或重启浏览器
+  - 方式 B（手动）：在代理设置页最下方"不使用代理的地址"（例外列表）填：
+    *.github.com;*.githubusercontent.com;*.githubassets.com;*.github.io;
+    *.githubcopilot.com;*.gitlab.com;*.gitee.com
+  - 若你的网络直连 GitHub 不通（页面打不开），删掉上面这些例外即可，GitHub 会改走门禁代理。
+
 ------------------------------------------------------
 第 3 步：自检
 ------------------------------------------------------
