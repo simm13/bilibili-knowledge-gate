@@ -87,6 +87,19 @@ bash scripts/healthcheck.sh  # 看服务状态、端口、今日裁决量
 
 ## 客户端设置
 
+### PAC 直连名单（不经过门禁、不做内容策略）
+
+默认直连：内网本地地址 + **GitHub 系**（github.com / githubusercontent.com / githubassets.com /
+api.github.com / codeload / avatars / gist / raw / github.io …）+ gitlab / gitee / bitbucket。
+
+- PAC 客户端：自动生效，改完 `systemctl restart mitmfilter`，浏览器里刷新一次 PAC 即可
+  （Chrome：`chrome://net-internals/#proxy` → Re-apply settings）
+- 手动代理客户端：在 Windows 代理设置的「例外列表」填
+  `*.github.com;*.githubusercontent.com;*.githubassets.com;*.github.io;*.githubcopilot.com;*.gitlab.com;*.gitee.com`
+
+> 直连的前提是**客户端自己的线路能出墙**。若某台机器直连 GitHub 会 `connect` 超时，
+> 把它从 `KB_PAC_BYPASS` 里去掉即可（改完重启 mitmfilter）。
+
 ### Windows 11 / 10
 
 1. **信任 CA**（否则 HTTPS 全是「您的连接不是专用连接」）

@@ -78,12 +78,18 @@ PROXY_PORT = os.environ.get("KB_PROXY_PORT", "8080")
 LAN_NET = os.environ.get("KB_LAN_NET", "")
 LAN_MASK = os.environ.get("KB_LAN_MASK", "255.255.255.0")
 # PAC 里直连（不走门禁代理）的域名：内网、局域网、以及"门禁服务器出口不通"的开发站点
-# 注意：默认只放行"本机/内网"直连。代码托管类站点（GitHub 等）**不要**默认直连——
-# 实测内网机器自己的出口连不上 GitHub（connect 直接超时），必须走门禁服务器出去。
-# 需要时可自行往里加：KB_PAC_BYPASS=github.com,gitlab.com
+# PAC 直连名单（不经过门禁代理，客户端自己直连）
+# 2026-10-22 按用户要求：GitHub 系一律直连、不做内容策略。
+# 注意：直连要求客户端自己的线路能出墙；实测部分内网机器直连 GitHub 会 connect 超时，
+#       那种情况把下面 github 段删掉即可（改 KB_PAC_BYPASS 环境变量）。
 PAC_BYPASS = [h.strip().lower() for h in os.environ.get(
     "KB_PAC_BYPASS",
-    "localhost,127.0.0.1",
+    "localhost,127.0.0.1,"
+    "github.com,githubusercontent.com,githubassets.com,github.io,githubcopilot.com,"
+    "gist.github.com,gist.githubusercontent.com,raw.githubusercontent.com,"
+    "api.github.com,codeload.github.com,objects.githubusercontent.com,"
+    "avatars.githubusercontent.com,collector.github.com,alive.github.com,"
+    "gitlab.com,gitee.com,bitbucket.org",
 ) .split(",") if h.strip()]
 
 PAC_TEMPLATE = """// Bilibili knowledge-content gateway (auto proxy config)
@@ -95,7 +101,7 @@ function kbBypass(host) {
   for (var i = 0; i < KB_BYPASS.length; i++) {
     var b = KB_BYPASS[i];
     if (b.charAt(0) === ".") { if (host.indexOf(b, host.length - b.length) !== -1) return true; }
-    else if (host === b || host.indexOf(b + ".") === 0 || host.indexOf("." + b + ".") !== -1) return true;
+    else if (host === b || host.indexOf(b + ".") === 0 || host.indexOf("." + b) !== -1) return true;
   }
   return false;
 }
