@@ -1,0 +1,24 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "_说明": [
+    "裁决服务通过 `opencode serve --port 4096 --hostname 127.0.0.1` 调用本配置里的模型。",
+    "免费层限制：必须用默认 agent + per-call system，不能带 tools 或自定义 agent。",
+    "把本文件放到 /opt/kbjudge/home/.config/opencode/opencode.json，并设置 HOME=/opt/kbjudge/home。",
+    "各家 provider 的 apiKey 请自行填写，**不要提交到 git**。"
+  ],
+  "provider": {
+    "opencode": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "opencode zen (free models)",
+      "options": {
+        "baseURL": "https://opencode.ai/zen/v1"
+      },
+      "models": {
+        "glm-5.3-flash-free": { "name": "GLM 5.3 Flash (free)" },
+        "nemotron-3.5-lightning-free": { "name": "Nemotron 3.5 Lightning (free)" },
+        "deepseek-v4.1-flash-free": { "name": "DeepSeek V4.1 Flash (free)" },
+        "longcat-2.5-preview-free": { "name": "LongCat 2.5 Preview (free)" }
+      }
+    }
+  }
+}

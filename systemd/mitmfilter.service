@@ -1,0 +1,26 @@
+[Unit]
+Description=Bilibili Knowledge Gate (mitmproxy addon)
+After=network-online.target kb-judge.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root
+Environment=HOME=/root
+Environment=KB_JUDGE_URL=http://127.0.0.1:8090
+Environment=KB_RULES_DIR=/opt/kbjudge
+Environment=KB_PROXY_PORT=8080
+# KB_PROXY_HOST 不设则自动探测本机 IP（PAC 客户端要用）
+# Environment=KB_PROXY_HOST=192.168.1.10
+Environment=KB_WEB_GATE=confident
+Environment=KB_WEB_WAIT=4
+Environment=KB_WEB_INJECT=1
+Environment=KB_WEB_DEBUG=0
+Environment=KB_HIDE_NON_KNOWLEDGE=0
+ExecStart=/usr/local/bin/mitmdump -p 8080 -s /opt/mitmproxy/bilibili_filter.py --set termlog_verbosity=info --set block_global=false
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

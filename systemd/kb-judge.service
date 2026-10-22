@@ -1,0 +1,25 @@
+[Unit]
+Description=Bilibili knowledge-content judge service (127.0.0.1:8090)
+After=network-online.target oc-judge.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/kbjudge
+Environment=KB_HOME=/opt/kbjudge
+Environment=KB_OC_URL=http://127.0.0.1:4096
+Environment=KB_JUDGE_PORT=8090
+# 模型链（逗号分隔，按顺序降级；免费模型名见 README）
+Environment=KB_MODELS=opencode/glm-5.3-flash-free,opencode/nemotron-3.5-lightning-free,opencode/deepseek-v4.1-flash-free
+Environment=KB_WEB_MODELS=opencode/glm-5.3-flash-free,opencode/nemotron-3.5-lightning-free
+Environment=KB_LLM_TIMEOUT=25
+Environment=KB_LLM_DEADLINE=70
+ExecStart=/usr/bin/python3 /opt/kbjudge/judge.py
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

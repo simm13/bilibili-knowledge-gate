@@ -1,0 +1,9 @@
+[Unit]
+Description=Export knowledge-gate verdicts to CSV for manual review
+After=kb-judge.service
+
+[Service]
+Type=oneshot
+Environment=KB_JUDGE_DB=/opt/kbjudge/verdicts.db
+Environment=KB_AUDIT_DIR=/opt/kbjudge/audit
+ExecStart=/usr/bin/python3 /opt/kbjudge/export_audit.py

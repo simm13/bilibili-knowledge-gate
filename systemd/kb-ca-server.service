@@ -1,0 +1,16 @@
+[Unit]
+Description=Knowledge Gate CA / client helper download server (HTTP)
+After=network.target
+
+[Service]
+Type=simple
+Environment=KB_CA_BIND=0.0.0.0
+Environment=KB_CA_PORT=8081
+ExecStart=/usr/bin/python3 -m http.server 8081 --bind ${KB_CA_BIND} --directory /srv/kbca
+Restart=always
+RestartSec=3
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target

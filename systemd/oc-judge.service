@@ -1,0 +1,18 @@
+[Unit]
+Description=opencode serve (LLM classification backend for the knowledge gate)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/kbjudge/home
+Environment=HOME=/opt/kbjudge/home
+ExecStart=/usr/local/bin/opencode serve --port 4096 --hostname 127.0.0.1
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

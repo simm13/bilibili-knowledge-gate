@@ -1,0 +1,9 @@
+[Unit]
+Description=Run knowledge-gate audit export daily
+
+[Timer]
+OnCalendar=*-*-* 23:50:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,3 @@
+# Python 依赖（系统自带 python3 即可运行，本文件仅列出可选增强）
+mitmproxy>=10.0        # 代理核心（pip install mitmproxy）
+# opencode             # LLM 裁决后端：npm i -g opencode-ai 或见 README
