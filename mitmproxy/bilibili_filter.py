@@ -1379,12 +1379,112 @@ def _handle_response(flow: http.HTTPFlow) -> None:
     ctx.log.info(f"[bili-filter] injected host={host} len={len(body)}")
 
 
+
+
+# ---------------- 出口不可达站点（快速失败，避免浏览器看到裸 502）----------------
+# 这些域名从本机出口无法访问（境内网络限制），走代理会长时间挂起后 502。
+# 命中后直接返回一个说明页；KB_EGRESS_BLOCKED 可按需增删。
+EGRESS_BLOCKED = [h.strip().lower() for h in os.environ.get(
+    "KB_EGRESS_BLOCKED",
+    # Google 系
+    "google.com,googleapis.com,gstatic.com,googlesyndication.com,"
+    "googleadservices.com,doubleclick.net,googletagmanager.com,google-analytics.com,"
+    "googlevideo.com,youtube.com,youtu.be,"
+    # 境内出口常见不可达
+    "facebook.com,fbcdn.net,instagram.com,twitter.com,x.com,tiktok.com,"
+    "telegram.org,t.me,reddit.com,pinterest.com,wikipedia.org,wikimedia.org,"
+    "netflix.com,spotify.com,whatsapp.com,dropbox.com,yandex.ru,dailymotion.com,"
+    "vimeo.com,zoom.us,discord.com,discordapp.com",
+).split(",") if h.strip()]
+
+_unreachable = {}          # host -> 最近一次上游连接失败的时间戳
+UNREACHABLE_TTL = 600     # 10 分钟内同一 host 直接快速失败
+_FAIL_HTML = """<!doctype html>
+<html><head><meta charset="utf-8"><title>出口不可达</title>
+<style>body{font:16px/1.8 system-ui,-apple-system,"Segoe UI",sans-serif;background:#f6f7f9;
+margin:0;padding:60px 20px;color:#18191c}.card{max-width:620px;margin:0 auto;background:#fff;
+border-radius:14px;padding:34px 38px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+h1{font-size:20px;margin:0 0 14px}code{background:#f2f3f5;padding:2px 6px;border-radius:4px}
+.box{background:#f6f7f9;border-left:3px solid #fb7299;padding:10px 14px;border-radius:4px;margin:16px 0}
+small{color:#9499a0}</style></head><body><div class="card">
+<h1>该站点从本机出口无法访问</h1>
+<p>目标站点：<code>%HOST%</code></p>
+<p>原因：<b>不是内容门禁拦截</b>，而是这台门禁服务器自身的公网出口无法连接该站点
+（境内网络限制/被墙），浏览器通常会显示「502 Bad Gateway」。</p>
+<div class="box">处理建议：<br>
+&nbsp;1) 该站点若必须访问，请在本机直连（不经过代理）；<br>
+&nbsp;2) 或联系管理员在出口侧放行；<br>
+&nbsp;3) 本页由门禁代理自动返回，避免长时间等待。</div>
+<p><small>reason: %REASON%</small></p>
+</div></body></html>"""
+
+
+def _host_of(flow):
+    try:
+        return (flow.request.pretty_host or flow.request.host or "").lower()
+    except Exception:
+        return ""
+
+
+def _is_egress_blocked(host):
+    for h in EGRESS_BLOCKED:
+        if host == h or host.endswith("." + h):
+            return True
+    return False
+
+
+def _unreachable_now(host):
+    ts = _unreachable.get(host)
+    return bool(ts) and (time.time() - ts) < UNREACHABLE_TTL
+
+
+def _fail_fast(flow, host, reason):
+    body = _FAIL_HTML.replace("%HOST%", host).replace("%REASON%", reason)
+    try:
+        flow.response = http.Response.make(
+            403, body.encode("utf-8"),
+            {"Content-Type": "text/html; charset=utf-8",
+             "Cache-Control": "no-store"},
+        )
+    except Exception:
+        pass
+
+
 def request(flow: http.HTTPFlow) -> None:
+    # 出口不可达：直接快速失败（CONNECT 只放行隧道，交给内层请求返回说明页）
+    try:
+        if flow.request.method != "CONNECT":
+            _h = _host_of(flow)
+            if _h:
+                if _is_egress_blocked(_h):
+                    _fail_fast(flow, _h, "egress-blocked")
+                    ctx.log.warn("[kb-gate] EGRESS-FAIL host=%s reason=egress-blocked" % _h)
+                    return
+                if _unreachable_now(_h):
+                    _fail_fast(flow, _h, "upstream-unreachable")
+                    ctx.log.warn("[kb-gate] EGRESS-FAIL host=%s reason=upstream-unreachable" % _h)
+                    return
+    except Exception:
+        pass
     _handle_request(flow)
 
 
 def response(flow: http.HTTPFlow) -> None:
     _handle_response(flow)
+
+
+def error(flow: http.HTTPFlow) -> None:
+    """上游连接失败（出口不可达）→ 记住该 host，之后直接快速失败"""
+    try:
+        if flow.request.method == "CONNECT":
+            return
+        _h = _host_of(flow)
+        if _h:
+            _unreachable[_h] = time.time()
+            ctx.log.warn("[kb-gate] EGRESS-FAIL host=%s err=%s"
+                         % (_h, str(getattr(flow, "error", ""))[:60]))
+    except Exception:
+        pass
 
 
 def load(loader):

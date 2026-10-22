@@ -133,9 +133,29 @@ sudo update-ca-certificates
 | `KB_MODELS` | 见模板 | LLM 模型链（逗号分隔，按顺序降级） |
 | `KB_LLM_DEADLINE` | 70 | 单次裁决整体截止时间（秒） |
 | `KB_HIDE_NON_KNOWLEDGE` | 0 | 1 = 首页直接隐藏非知识类卡片 |
+| `KB_EGRESS_BLOCKED` | 见 `systemd/mitmfilter.service` | 出口连不上的域名 → 快速失败并给说明页（不是拦截） |
 | `KB_WEB_ALLOW_FILE` | `/opt/kbjudge/web_allow.txt` | 运行时白名单（每行一域名，**5 秒内生效，不用重启**） |
 
 ---
+
+## 出口不可达（502 Bad Gateway）怎么处理
+
+有些站点（Google、YouTube、Facebook…）从**服务器自己的公网出口**就连不上，
+浏览器经代理访问时 mitmproxy 会挂起几十秒，最后弹一个裸的「502 Bad Gateway」。
+
+本项目的处理：
+
+- `KB_EGRESS_BLOCKED` 列出这类域名 → 代理**立刻**返回一个「出口不可达」说明页（不是门禁拦截，页面里写清楚了）
+- 运行期发现某个 host 上游连不上 → 记入内存缓存（10 分钟），之后该域名直接快速失败
+- 代理用 `--set connection_strategy=lazy`：先建隧道再连上游，才能在内层请求里返回友好页面
+
+```bash
+# 改完重启
+systemctl restart mitmfilter
+# 验证
+curl -s -x http://127.0.0.1:8080 -H "Sec-Fetch-Dest: document" https://www.google.com/ | grep -o "<title>.*</title>"
+# -> <title>出口不可达</title>
+```
 
 ## 策略：什么算「知识」
 

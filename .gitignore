@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.db
+*.db-journal
+*.pem
+*.p12
+*.cer
+*.key
+.env
+gate.env
+subject_feed.json
+stem_feed.json
+audit/
+.venv/
+venv/
+.DS_Store

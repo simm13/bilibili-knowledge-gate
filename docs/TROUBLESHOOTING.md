@@ -53,7 +53,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\Fix-CaTrust.ps1
 - 只有部分网站报错 → 那些站点用了 HSTS 预加载 + CT 强制（`edge://policy` 看证书策略）
 - 时间不对 → 证书还没到生效时间，脚本里已自动 `w32tm /resync`
 
-## 二、LLM 通道
+## 二、浏览器报「502 Bad Gateway」
+
+先分清是**谁的 502**：
+
+```bash
+journalctl -u mitmfilter.service --since "-10 min" | grep -A2 "502 Bad Gateway"
+```
+
+- 日志里是 `CONNECT www.google.com:443` 之类 → **出口不可达**（不是门禁拦截）：
+  这些域名从服务器公网出口就连不上。已由 `KB_EGRESS_BLOCKED` 快速失败并返回说明页；
+  需要访问就本机直连，或让管理员在出口侧放行。
+- 日志里是别的域名 → 看下一行 `error establishing server connection` 的原因。
+
+> 注意：mitmproxy 默认 `connection_strategy=eager` 会在 CONNECT 阶段就连上游，
+> 上游不通时浏览器只看到裸 502。本项目用 `lazy`，才能在内层请求返回友好页面。
+
+## 三、LLM 通道
 
 ```bash
 systemctl status oc-judge
@@ -72,7 +88,7 @@ journalctl -u kb-judge --since "-10 min" | grep -E "llm model=.*failed|unparsabl
 
 模型名会随 opencode 版本变化，`KB_MODELS` 里的名字要对齐 `opencode models` 的输出。
 
-## 三、用 curl 自测时门禁"不生效"
+## 四、用 curl 自测时门禁"不生效"
 
 门禁只对**文档导航**生效（`Sec-Fetch-Dest: document` 或 `Accept: text/html`），
 普通 `curl`（`Accept: */*`）会被当成 API 请求直接放行。测试时必须带浏览器头：
@@ -85,7 +101,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -x http://127.0.0.1:8080 \
 
 （`scripts/selftest.sh` 已经带了这些头。）
 
-## 四、判定不生效
+## 五、判定不生效
 
 ```bash
 # 看某个 bvid 的裁决
@@ -99,7 +115,7 @@ sqlite3 /opt/kbjudge/verdicts.db "delete from verdicts where bvid='BVxxx';"
 - `source=llm` → 模型判的，看 `model=` 是哪个模型，调提示词或换模型
 - 没有记录 → 从没判过，检查队列 `curl 127.0.0.1:8090/stats`（`queue_prio` / `queue_bg`）
 
-## 五、web 门禁误伤
+## 六、web 门禁误伤
 
 ```bash
 # 看某个域名为什么被拦
@@ -110,7 +126,7 @@ journalctl -u mitmfilter | grep "kb-web" | grep "yourhost"
 - 数据源/行情域名被拦 → 追加到 `/opt/kbjudge/web_allow.txt`（5 秒热生效）
 - 放行页出现「判定中」横幅 → 说明该域名不在白名单、走了 LLM 判定；确认后加白名单
 
-## 六、资源与性能
+## 七、资源与性能
 
 ```bash
 free -g; df -h /; ps -eo pid,rss,args --sort=-rss | head
@@ -122,7 +138,7 @@ free -g; df -h /; ps -eo pid,rss,args --sort=-rss | head
   说明是有人登录在用的桌面浏览器，不要动。
 - 磁盘：mitmproxy 的 CA 目录、裁决库、审计 CSV 会慢慢涨，配合 logrotate/定期清理。
 
-## 七、部署后必做验证
+## 八、部署后必做验证
 
 ```bash
 bash scripts/selftest.sh
